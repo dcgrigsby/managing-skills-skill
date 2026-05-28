@@ -43,22 +43,23 @@ When a CLI ships its own skill installer (`qmd skill install`, `<tool> skill ins
 Always pass explicit `-a` flags for the user's target harnesses. **Never use `-a '*'`.**
 
 ```bash
-npx skills add <github-repo> -g -a claude-code -a gemini-cli -a codex -a zed -y
+npx skills add <github-repo> -g -a claude-code -a gemini-cli -a codex -a zed -a cursor -y
 ```
 
 Same flags for `update`:
 
 ```bash
-npx skills update <name> -g -a claude-code -a gemini-cli -a codex -a zed -y
+npx skills update <name> -g -a claude-code -a gemini-cli -a codex -a zed -a cursor -y
 ```
 
-**Why:** `-a '*'` creates symlink directories for every harness `npx skills` knows about — including ones the user doesn't have installed — which clutter the filesystem with dead directories. The four named harnesses (`claude-code`, `gemini-cli`, `codex`, `zed`) are the ones the user actively runs that consume filesystem skills through the `npx skills` install flow.
+**Why:** `-a '*'` creates symlink directories for every harness `npx skills` knows about — including ones the user doesn't have installed — which clutter the filesystem with dead directories. The five named harnesses (`claude-code`, `gemini-cli`, `codex`, `zed`, `cursor`) are the ones the user actively runs that consume filesystem skills through the `npx skills` install flow.
 
 **How to apply:**
 
-- Codex CLI, Gemini CLI, and Zed are "universal-reader" agents in the `npx skills` model — they read directly from `~/.agents/skills/`. The install writes once and they pick it up without per-agent symlinks. They still need to appear in `-a` so `npx skills` records them as targets.
+- Codex CLI, Gemini CLI, Zed, and Cursor Agent are "universal-reader" agents in the `npx skills` model — they read directly from `~/.agents/skills/`. The install writes once and they pick it up without per-agent symlinks. They still need to appear in `-a` so `npx skills` records them as targets.
 - Claude Code needs explicit symlinks, which `npx skills` creates under `~/.claude/skills/`.
-- `npx skills list -g` may show only "Claude Code" and "Zed" under the `Agents:` line for these skills — that display is not a complete loader proof for every universal-reader. Codex and Gemini still see the shared `~/.agents/skills/` installs. Display quirk, not a bug.
+- `npx skills list -g` may show only "Claude Code" and "Zed" under the `Agents:` line for these skills — that display is not a complete loader proof for every universal-reader. Codex, Gemini, and Cursor still see the shared `~/.agents/skills/` installs. Display quirk, not a bug.
+- Cursor also has native skill locations (`~/.cursor/skills/` for personal skills and `.cursor/skills/` for project skills) plus a managed built-in directory at `~/.cursor/skills-cursor/`. For the user's shared global workflow, prefer `npx skills` into `~/.agents/skills/`; never install or edit user skills in `~/.cursor/skills-cursor/`, which Cursor owns and may overwrite.
 - Other harnesses the user has (Claude Desktop, ChatGPT, Gemini Desktop, Codex Desktop) don't load filesystem skills — they use MCP servers, plugins, or custom GPTs and are not targets for `npx skills`.
 - If the user adds or removes a target harness (e.g., installs a new CLI that uses filesystem skills, or uninstalls one), update the `-a` flag list accordingly.
 
@@ -75,7 +76,7 @@ When the user asks for a behavior change to a skill installed under `~/.agents/s
 
 - Source-only edits. Let `npx skills update` do the propagation.
 - If the push fails, stop and surface that. Don't paper over it by hand-writing the installed copy.
-- Use the canonical update invocation from Rule 2 (`-a claude-code -a gemini-cli -a codex -a zed`, never `-a '*'`).
+- Use the canonical update invocation from Rule 2 (`-a claude-code -a gemini-cli -a codex -a zed -a cursor`, never `-a '*'`).
 - To find the source repo for an installed skill, check `~/.agents/.skill-lock.json` → `sourceUrl`:
 
   ```bash
@@ -86,7 +87,7 @@ When the user asks for a behavior change to a skill installed under `~/.agents/s
 
 ### Recovery: skill exists on disk but isn't in the lockfile
 
-If `npx skills update <name>` returns `No installed skills found matching: <name>`, the skill is installed under `~/.agents/skills/<name>/` but isn't tracked in `~/.agents/.skill-lock.json`. Common causes: installed before the lockfile existed, manually `git clone`'d, or installed by a tool-bundled installer in violation of Rule 1. **Recovery: `npx skills add <repo> -g -a claude-code -a gemini-cli -a codex -a zed -y`** — this overwrites the on-disk copy and registers the entry, after which `update` works normally.
+If `npx skills update <name>` returns `No installed skills found matching: <name>`, the skill is installed under `~/.agents/skills/<name>/` but isn't tracked in `~/.agents/.skill-lock.json`. Common causes: installed before the lockfile existed, manually `git clone`'d, or installed by a tool-bundled installer in violation of Rule 1. **Recovery: `npx skills add <repo> -g -a claude-code -a gemini-cli -a codex -a zed -a cursor -y`** — this overwrites the on-disk copy and registers the entry, after which `update` works normally.
 
 Detect up front before relying on `update`:
 
@@ -141,7 +142,7 @@ For "change the X skill so it does Y":
 2. Verify the local clone exists at `~/<X>-skill/`. If not, `git clone <sourceUrl> ~/<X>-skill/`.
 3. Edit `~/<X>-skill/SKILL.md` (or other files in the repo).
 4. Commit with a descriptive message; push to the origin. **If push fails, stop and surface the failure.**
-5. Run `npx skills update <X> -g -a claude-code -a gemini-cli -a codex -a zed -y`. If it reports `No installed skills found matching: <X>`, fall through to `npx skills add <repo> -g -a claude-code -a gemini-cli -a codex -a zed -y` (see "Recovery: skill exists on disk but isn't in the lockfile" above).
+5. Run `npx skills update <X> -g -a claude-code -a gemini-cli -a codex -a zed -a cursor -y`. If it reports `No installed skills found matching: <X>`, fall through to `npx skills add <repo> -g -a claude-code -a gemini-cli -a codex -a zed -a cursor -y` (see "Recovery: skill exists on disk but isn't in the lockfile" above).
 6. Verify the installed file under `~/.agents/skills/<X>/` reflects the new content.
 7. If the edit touched the `description:` field, run `codex exec "ok" 2>&1 | grep -iE 'skipped|invalid description|exceeds'` — empty output confirms Codex accepted the new description (see Rule 4).
 
@@ -157,12 +158,12 @@ For "create a new skill called X":
    - `.gitignore` — at minimum `.DS_Store`, `__pycache__/`, `.venv/`.
 2. `git init`, commit.
 3. `gh repo create <user>/<X>-skill --public --source ~/<X>-skill --push` (default visibility is public to match the other repos; private only if the user explicitly asks).
-4. Install: `npx skills add <user>/<X>-skill -g -a claude-code -a gemini-cli -a codex -a zed -y`.
+4. Install: `npx skills add <user>/<X>-skill -g -a claude-code -a gemini-cli -a codex -a zed -a cursor -y`.
 5. Verify the install lands at `~/.agents/skills/<X>/` and the lockfile entry exists.
 
 ## Removing a skill
 
-`npx skills remove <name> -g -y` updates the lockfile and removes the install. Do not use a Zed-targeted remove (`-a zed`) as the default: in a live test with `npx skills` 1.5.9, `npx skills remove <name> -g -a zed -y` reported success but left the `~/.agents/skills/<name>/` directory in place; the broader managed remove cleaned it up. If the user wants to also delete the local source clone, do that separately (`rm -rf ~/<name>-skill/`) and confirm before destructive removal.
+`npx skills remove <name> -g -y` updates the lockfile and removes the install. Do not use targeted removes (`-a zed`, `-a cursor`) as the default: in live tests with `npx skills` 1.5.9, targeted removes reported success but left the `~/.agents/skills/<name>/` directory in place; the broader managed remove cleaned it up. If the user wants to also delete the local source clone, do that separately (`rm -rf ~/<name>-skill/`) and confirm before destructive removal.
 
 ## When the canonical paths don't apply
 
