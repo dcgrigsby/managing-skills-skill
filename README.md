@@ -17,7 +17,7 @@ These aren't theoretical — the rules in [SKILL.md](SKILL.md) come from inciden
 ## Install
 
 ```bash
-npx skills add dcgrigsby/managing-skills-skill -g -a claude-code -a gemini-cli -a codex -y
+npx skills add dcgrigsby/managing-skills-skill -g -a claude-code -a gemini-cli -a codex -a zed -y
 ```
 
 Or clone this repo and point your skill-loader at the directory.
